@@ -592,7 +592,8 @@ async function getSalesInvoiceNumber(req, res) {
         invoiceNumber: 'desc'
       }
     });
-     res.json(++invoiceNumber.invoiceNumber??0);
+    const result = invoiceNumber?.invoiceNumber? ++invoiceNumber.invoiceNumber: 1
+     res.json(result);
   }
    catch (error) {
     console.error("Error: ", error);

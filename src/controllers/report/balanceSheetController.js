@@ -155,8 +155,8 @@ function aggregateTransactions(transactions) {
       aggregateTransactions.totalCurrentLiabilities += credit;
     }  
     else if (accountType === "Equity") {
-      if (!aggregateTransactions.shareHoldersEquity[chartofAccount.name]) {
-        aggregateTransactions.shareHoldersEquity[chartofAccount.name].value +=
+      if (aggregateTransactions.shareHoldersEquity[chartofAccount?.name]) {
+        aggregateTransactions.shareHoldersEquity[chartofAccount?.name].value +=
           debit ?? credit;
       } else {
         aggregateTransactions.shareHoldersEquity[chartofAccount.name] = {
@@ -168,21 +168,21 @@ function aggregateTransactions(transactions) {
     } else {
       // incase of new transactions debits are included with other assets and credits are included other liabilities with provisions
       if (debit) {
-        if (aggregateTransactions.currentAsset[chartofAccount.name]) {
-          aggregateTransactions.currentAsset[chartofAccount.name].value +=
+        if (aggregateTransactions.currentAsset[chartofAccount?.name]) {
+          aggregateTransactions.currentAsset[chartofAccount?.name].value +=
             debit ?? 0;
         } else {
-          aggregateTransactions.currentAsset[chartofAccount.name] = {
+          aggregateTransactions.currentAsset[chartofAccount?.name] = {
             value: debit ?? credit,
           };
         }
         aggregateTransactions.totalCurrentAssets += debit;
       } else if( credit) {
-        if (aggregateTransactions.provisions[chartofAccount.name]) {
-          aggregateTransactions.provisions[chartofAccount.name].value +=
+        if (aggregateTransactions.provisions[chartofAccount?.name]) {
+          aggregateTransactions.provisions[chartofAccount?.name].value +=
             credit ?? 0;
         } else {
-          aggregateTransactions.provisions[chartofAccount.name] = {
+          aggregateTransactions.provisions[chartofAccount?.name] = {
             value: credit ?? 0,
           };
         }
@@ -298,13 +298,49 @@ async function generateBalanceSheetPdf(transactions, endDate) {
     doc.on("end", () => resolve(Buffer.concat(buffers)));
     doc.on("error", reject);
 
+    const columnTitles = [" ", "Total"];
+    const columnOffsets = [10, 390];
+
+
+    let pageCount = 1;
+
+    const addHeaders = () => {
+      ++pageCount;
+      if (pageCount >= 1) {
+        doc.addPage();
+      }
+      xOffset = 10;
+      yOffset = 190;
+      doc
+        .fontSize(10)
+        .text("Balance sheet", { align: "center" })
+        .moveDown();
+      doc.fontSize(8).text(handleTimeSpan(), { align: "center" }).moveDown();
+      doc.fontSize(5);
+      columnTitles.forEach((title) => {
+        doc.text(title[0], xOffset, 150);
+        xOffset += 390;
+      });
+      doc.lineWidth(0.5); // Set line weight to 2 (adjust as needed)
+      doc.moveTo(10, 145).lineTo(600, 145).stroke(); // Line above the first row
+      doc.moveTo(10, 165).lineTo(600, 165).stroke(); // Line above the first row
+      xOffset = 10;
+      doc.fontSize(10);
+    };
+
+    const addSpacing = (val)=>{
+      if(yOffset + val > 680){
+        addHeaders();
+      }
+      else{
+        yOffset += val;
+      }
+    }
+
     // add table headers
     doc.moveTo(0, 50);
     doc.fontSize(10).text("BalanceSheet", { align: "center" }).moveDown();
     doc.fontSize(8).text(handleTimeSpan(), { align: "center" }).moveDown();
-
-    const columnTitles = [" ", "Total"];
-    const columnOffsets = [10, 490];
 
     doc.moveTo(10, 105).lineTo(600, 105).stroke(); // Line above the first row
 
@@ -319,122 +355,120 @@ async function generateBalanceSheetPdf(transactions, endDate) {
 
     let yOffset = 130;
     doc.fontSize(10).text("Assets", 10, yOffset).moveDown();
-    yOffset += 15;
+    addSpacing(15);
     doc.fontSize(10).text("current Assets", 15, yOffset).moveDown();
-    yOffset +=15;
+    addSpacing(15);
     doc.fontSize(10).text("Accounts receivable", 20, yOffset).moveDown();
-    yOffset +=15; 
+    addSpacing(15);
     // account receivable
     if (Object.keys(transactions.accountReceivable).length !== 0) {
       Object.entries(transactions.accountReceivable).forEach((transaction) => {
         doc.text(transaction[0], columnOffsets[0], yOffset);
         doc.text(transaction[1].value?.toFixed(2), columnOffsets[1], yOffset);
-        yOffset += 15;
+        addSpacing(15);
       });
     }
     doc.lineWidth(0.2);
     doc.moveTo(10, yOffset).lineTo(600, yOffset).stroke();
     doc.lineWidth(0.5);
-    yOffset += 10;
+    addSpacing(10);
     doc.text("Total account receivable", columnOffsets[0], yOffset);
     doc.text(transactions.incomeTotal?.toFixed(2), columnOffsets[1], yOffset);
 
-    yOffset += 20;
+    addSpacing(20);
 
     // current assets
     if (Object.keys(transactions.currentAsset).length !== 0) {
       Object.entries(transactions.currentAsset).forEach((transaction) => {
         doc.text(transaction[0], columnOffsets[0], yOffset);
         doc.text(transaction[1].value?.toFixed(2), columnOffsets[1], yOffset);
-        yOffset += 15;
+        addSpacing(15);
       });
-
     }
     doc.lineWidth(0.2)
     doc.moveTo(10, yOffset).lineTo(600, yOffset).stroke();
     doc.lineWidth(0.5)
-    yOffset += 10;
+    addSpacing(10);
     doc.text("Total current asset", columnOffsets[0], yOffset);
     doc.text(transactions.totalCurrentAssets?.toFixed(2), columnOffsets[1], yOffset);
-    yOffset += 10;
+    addSpacing(20);
     doc.lineWidth(0.2)
     doc.moveTo(10, yOffset).lineTo(600, yOffset).stroke();
     doc.lineWidth(0.5)
-    yOffset += 10;
+    addSpacing(10);
     doc.text("Total asset", columnOffsets[0], yOffset);
-    doc.text(transactions.totalAssets?.toFixed(2), columnOffsets[1], yOffset);
-    yOffset += 10;
+    doc.text(`Br ${transactions.totalAssets?.toFixed(2)}`, columnOffsets[1], yOffset);
+    addSpacing(10);
 
     doc.lineWidth(0.6)
     doc.moveTo(10, yOffset).lineTo(600, yOffset).stroke();
-    yOffset+=2;
+    addSpacing(2);
     doc.moveTo(10, yOffset).lineTo(600, yOffset).stroke();
-    yOffset +=20;
+    addSpacing(10);
     doc.lineWidth(0.5)
 
     // expenses
     doc.fontSize(10).text("liabilities and share holder's equity", 10, yOffset).moveDown();
-    yOffset += 15;
+    addSpacing(15);
     doc.fontSize(10).text("current liabilities:", 15, yOffset).moveDown();
-    yOffset += 15; 
+    addSpacing(15);
     doc.fontSize(10).text("Accounts payable", 20, yOffset).moveDown();
-    yOffset += 15;
+    addSpacing(15);
     if (Object.keys(transactions.accountPayable).length !== 0) {
       Object.entries(transactions.accountPayable).forEach((transaction) => {
         doc.text(transaction[0], columnOffsets[0], yOffset);
         doc.text(transaction[1].value?.toFixed(2), columnOffsets[1], yOffset);
-        yOffset += 15;
+        addSpacing(15);
       });
     }
     doc.lineWidth(0.2);
     doc.moveTo(10, yOffset).lineTo(600, yOffset).stroke();
     doc.lineWidth(0.5)
-    yOffset += 10;
+    addSpacing(10);
     doc.text("Total Account payable", columnOffsets[0], yOffset);
-    doc.text(transactions.totalAccountsPayable?.toFixed(2), columnOffsets[1], yOffset);
-    yOffset += 20;
+    doc.text(`Br ${transactions.totalAccountsPayable?.toFixed(2)}`, columnOffsets[1], yOffset);
+    addSpacing(20);
 
     // provisions
     Object.entries(transactions.provisions).forEach((transaction) => {
       doc.text(transaction[0], columnOffsets[0], yOffset);
       doc.text(transaction[1].value?.toFixed(2), columnOffsets[1], yOffset);
-      yOffset += 15;
+      addSpacing(15);
     });
-    doc.lineWidth(0.2)
+    doc.fontSize(10);
     doc.moveTo(10, yOffset).lineTo(600, yOffset).stroke();
-    doc.lineWidth(0.5)
-    yOffset += 10;
+    addSpacing(10);
     doc.text("Total current liabilities", columnOffsets[0], yOffset);
-    doc.text(transactions.totalCurrentLiabilities?.toFixed(2), columnOffsets[1], yOffset);
-    yOffset += 20;
+    doc.text(`Br ${transactions.totalCurrentLiabilities?.toFixed(2)}`, columnOffsets[1], yOffset);
+    addSpacing(20);
 
 
     // share holders' equity
     doc.text("Shareholders' equity", columnOffsets[0], yOffset);
-    yOffset += 20;
+    addSpacing(20);
     doc.text("net income", columnOffsets[0], yOffset);
     doc.text(transactions.netEarning?.toFixed(2), columnOffsets[1], yOffset);
-    yOffset +=15;
+    addSpacing(15);
     Object.entries(transactions.shareHoldersEquity).forEach((transaction) => {
       doc.text(transaction[0], columnOffsets[0], yOffset);
       doc.text(transaction[1].value?.toFixed(2), columnOffsets[1], yOffset);
-      yOffset += 15;
+      addSpacing(15);
     });
     doc.lineWidth(0.2)
     doc.moveTo(10, yOffset).lineTo(600, yOffset).stroke();
     doc.lineWidth(0.5);
-    yOffset += 10;
+    addSpacing(10);
     doc.text("Total shareholders' equity", columnOffsets[0], yOffset);
-    doc.text(transactions.totalShareHoldersEquity?.toFixed(2), columnOffsets[1], yOffset);
-    yOffset += 10;
+    doc.text(`Br ${transactions.totalShareHoldersEquity?.toFixed(2)}`, columnOffsets[1], yOffset);
+    addSpacing(10);
 
     doc.lineWidth(0.2)
     doc.moveTo(10, yOffset).lineTo(600, yOffset).stroke();
     doc.lineWidth(0.5);
-    yOffset += 10;
+    addSpacing(10);
     doc.text("Total liabilities and equity", columnOffsets[0], yOffset);
-    doc.text(transactions.totalLiabilitiesAndEquity?.toFixed(2), columnOffsets[1], yOffset);
-    yOffset+=10;
+    doc.text(`Br ${transactions.totalLiabilitiesAndEquity?.toFixed(2)}`, columnOffsets[1], yOffset);
+    addSpacing(10);
     doc.lineWidth(0.6);
     doc.moveTo(10, yOffset).lineTo(600, yOffset).stroke();
 

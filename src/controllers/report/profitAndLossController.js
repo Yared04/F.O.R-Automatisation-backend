@@ -23,10 +23,9 @@ async function generateProfitAndLossReport(req, res) {
     const expenseAccountTypes = [
       "Expenses",
       "Cost of Goods Sold",
-      "Other Expenses",
     ];
 
-    const incomeAccountTypes = ["Income", "Other Income"];
+    const incomeAccountTypes = ["Sales of Product Income"];
 
     if (startDate && endDate) {
       CaFilter.date = {
@@ -86,9 +85,9 @@ async function generateProfitAndLossReport(req, res) {
 }
 
 function aggregatedTransactions(transactions) {
-  const expenseAccountTypes = ["Expenses", "Other Expenses"];
+  const expenseAccountTypes = ["Expenses"];
 
-  const incomeAccountTypes = ["Income", "Other Income"];
+  const incomeAccountTypes = ["Income","Sales of Product Income"];
   const aggregateTransactions = {
     income: {},
     costOfSales: {},
@@ -102,21 +101,22 @@ function aggregatedTransactions(transactions) {
     otherExpensesTotal: 0,
   };
   transactions.forEach((transaction) => {
-    const { debit, credit, chartofAccount } = transaction;
+    const { debit, credit, chartofAccount, supplierId } = transaction;
     const accountType = chartofAccount?.accountType?.name;
-
+    
     if (incomeAccountTypes.includes(accountType)) {
       if (aggregateTransactions.income[chartofAccount.name]) {
-        aggregateTransactions.income[chartofAccount.name].value += credit ?? 0;
+        aggregateTransactions.income[chartofAccount.name].value += debit ?? 0;
       } else {
         aggregateTransactions.income[chartofAccount.name] = {
-          value: credit ?? 0,
+          value: debit ?? 0,
           name: chartofAccount,
         };
       }
-      aggregateTransactions.incomeTotal += credit;
+      aggregateTransactions.incomeTotal += debit;
     } else if (expenseAccountTypes.includes(accountType)) {
       if (aggregateTransactions.expenses[chartofAccount.name]) {
+        if(supplierId)
         aggregateTransactions.expenses[chartofAccount.name].value += debit ?? 0;
       } else {
         aggregateTransactions.expenses[chartofAccount.name] = {
@@ -125,18 +125,7 @@ function aggregatedTransactions(transactions) {
         };
       }
       aggregateTransactions.expensesTotal += debit;
-    } else if (accountType === "Other Expenses") {
-      if (!aggregateTransactions.otherExpenses[chartofAccount.name]) {
-        aggregateTransactions.otherExpenses[chartofAccount.name].value += debit ?? 0;
-      } else {
-        aggregateTransactions.otherExpenses[chartofAccount.name] = {
-          value: debit ?? 0,
-          name: chartofAccount.name,
-        };
-      }
-      aggregateTransactions.otherExpenses[chartofAccount.name].name = chartofAccount;
-      aggregateTransactions.otherExpensesTotal += debit;
-    } else if (accountType === "Cost of Goods Sold") {
+    }  else if (accountType === "Cost of Goods Sold") {
       if (aggregateTransactions.costOfSales[chartofAccount.name]) {
         aggregateTransactions.costOfSales[chartofAccount.name].value += debit ?? 0;
       } else {
@@ -150,7 +139,7 @@ function aggregatedTransactions(transactions) {
   });
   aggregateTransactions.grossProfit =
     aggregateTransactions.incomeTotal -
-    aggregateTransactions.expensesTotal;
+    aggregateTransactions.costOfSalesTotal;
   aggregateTransactions.netEarning =
     aggregateTransactions.grossProfit -
     (aggregateTransactions.expensesTotal +
@@ -211,10 +200,12 @@ async function generateProfitLossPdf(
     doc.moveTo(10, yOffset).lineTo(600, yOffset).stroke(); 
     yOffset += 10;
     doc.text("Total Income", columnOffsets[0], yOffset);
-    doc.text(transactions.incomeTotal?.toFixed(2), columnOffsets[1], yOffset);
+    doc.text(`Br ${transactions.incomeTotal?.toFixed(2)}`, columnOffsets[1], yOffset);
 
     yOffset+=20;
 
+    doc.text("Cost of Sales", columnOffsets[0], yOffset);
+    yOffset += 20;
     // cost of sales
     if (Object.keys(transactions.costOfSales).length !== 0) {
       Object.entries(transactions.costOfSales).forEach((transaction) => {
@@ -226,7 +217,12 @@ async function generateProfitLossPdf(
     doc.moveTo(10, yOffset).lineTo(600, yOffset).stroke(); 
     yOffset += 10;
     doc.text("Total cost of sales", columnOffsets[0], yOffset);
-    doc.text(transactions.costOfSalesTotal?.toFixed(2), columnOffsets[1], yOffset);
+    doc.text(`Br ${transactions.costOfSalesTotal?.toFixed(2)}`, columnOffsets[1], yOffset);
+    yOffset+=20;
+    doc.moveTo(10, yOffset).lineTo(600, yOffset).stroke(); 
+    yOffset += 10;
+    doc.text("GROSS PROFIT", columnOffsets[0], yOffset);
+    doc.text(`Br ${transactions.grossProfit?.toFixed(2)}`, columnOffsets[1], yOffset);
     yOffset+=20;
     // expenses
     doc.fontSize(10).text("Expenses", 10, yOffset).moveDown();
@@ -241,7 +237,7 @@ async function generateProfitLossPdf(
     doc.moveTo(10, yOffset).lineTo(600, yOffset).stroke(); 
     yOffset += 10;
     doc.text("Total Expenses", columnOffsets[0], yOffset);
-    doc.text(transactions.expensesTotal?.toFixed(2), columnOffsets[1], yOffset);
+    doc.text(`Br ${transactions.expensesTotal?.toFixed(2)}`, columnOffsets[1], yOffset);
     yOffset += 20;
 
     // other expenses
@@ -255,13 +251,13 @@ async function generateProfitLossPdf(
     doc.moveTo(10, yOffset).lineTo(600, yOffset).stroke(); 
     yOffset += 10;
     doc.text("Total Other Expenses", columnOffsets[0], yOffset);
-    doc.text(transactions.otherExpensesTotal?.toFixed(2), columnOffsets[1], yOffset);
+doc.text(`Br ${transactions.otherExpensesTotal?.toFixed(2)}`, columnOffsets[1], yOffset);
     yOffset += 20;
 
     doc.moveTo(10, yOffset).lineTo(600, yOffset).stroke(); 
     yOffset +=10;
     doc.text("NET EARINING", columnOffsets[0], yOffset);
-    doc.text(transactions.netEarning?.toFixed(2), columnOffsets[1], yOffset);
+    doc.text(`Br ${transactions.netEarning?.toFixed(2)}`, columnOffsets[1], yOffset);
     doc.end();
   });
 }

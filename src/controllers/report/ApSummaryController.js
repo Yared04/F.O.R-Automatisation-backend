@@ -25,7 +25,7 @@ async function generateApAgingSummary(req, res) {
 
     accountPayableType = accountPayableType.map(item=>item.id);
 
-    // Find the Chart of Account for Accounts Receivable (A/P)
+    // Find the Chart of Account for Accounts Payable (A/P)
     let arChartOfAccount = await prisma.chartOfAccount.findMany({
       where: {
        accountTypeId: {
@@ -58,7 +58,6 @@ async function generateApAgingSummary(req, res) {
         supplier: true,
       },
     });
-
     // Categorize transactions into aging buckets
     const agingBuckets = categorizeApAgingTransactions(
       arTransactions,

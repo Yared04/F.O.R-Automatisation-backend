@@ -38,7 +38,6 @@ async function generateCustomerAgingSummary(req, res) {
     });
 
     const customerIds = arTransactions.map((transaction) => transaction.customer.id);
-    console.log(customerIds);
 
     const paidAmounts = await prisma.sale.findMany({
       where: {

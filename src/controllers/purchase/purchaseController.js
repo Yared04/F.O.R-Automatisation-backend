@@ -1205,7 +1205,8 @@ async function getPurchaseWaybillNumber(req, res) {
         number: "desc",
       },
     });
-    res.json(++waybillNumber.number ?? 0);
+    const result = waybillNumber?.number? ++waybillNumber.number: 1
+    res.json(result);
   } catch (error) {
     console.error("Error: ", error);
     res.status(500).send(error.message);

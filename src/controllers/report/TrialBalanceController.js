@@ -14,7 +14,6 @@ async function generateTrialBalance(req, res) {
         not:null
       }}
     ]
-
     }  
     
     if (startDate && endDate) {
@@ -87,7 +86,6 @@ function aggregateTransactions(transactions) {
     const bankName = bankTransaction?.bank?.name??"";
     const accountType = accountName || bankName;
     
-    const { saleQuantity, totalSales } = saleDetail || {};
 
     if (!aggregatedTransactions[accountType]) {
       aggregatedTransactions[accountType] = {
@@ -96,11 +94,30 @@ function aggregateTransactions(transactions) {
       };
     }
 
-    if(credit){
-    aggregatedTransactions[accountType].credit += credit;
+    if (credit) {
+      aggregatedTransactions[accountType].credit += credit;
     }
-    if(debit){
-    aggregatedTransactions[accountType].debit += debit;
+
+    if (debit) {
+      aggregatedTransactions[accountType].debit += debit;
+    }
+
+    // Check if there are both credit and debit for the same account
+    if (aggregatedTransactions[accountType]?.credit !== 0 && aggregatedTransactions[accountType]?.debit !== 0) {
+      const diff = aggregatedTransactions[accountType]?.debit - aggregatedTransactions[accountType]?.credit;
+
+      if (diff > 0) {
+        aggregatedTransactions[accountType].credit = diff;
+        aggregatedTransactions[accountType].debit = 0;
+      } else {
+        aggregatedTransactions[accountType].debit = Math.abs(diff);
+        aggregatedTransactions[accountType].credit = 0;
+      }
+    }
+  });
+  Object.keys(aggregatedTransactions).forEach((key) => {
+    if (aggregatedTransactions[key].credit === 0 && aggregatedTransactions[key].debit === 0) {
+      delete aggregatedTransactions[key];
     }
   });
 
@@ -176,7 +193,6 @@ async function generateTrialBalancePdf(transactions, totals, startDate, endDate)
     doc.text("Total", columnOffsets[0], yOffset);
     doc.text(totals.debit?.toFixed(2), columnOffsets[1], yOffset);
     doc.text(totals.credit?.toFixed(2), columnOffsets[2], yOffset);
-
     doc.end();
   });
 }

@@ -598,7 +598,6 @@ async function generateCaTransactionPDFContent(
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument();
     const buffers = [];
-
     // Buffer PDF content
     doc.on("data", (buffer) => buffers.push(buffer));
     doc.on("end", () => resolve(Buffer.concat(buffers)));
@@ -630,7 +629,9 @@ async function generateCaTransactionPDFContent(
       doc.fontSize(8).text(handleTimeSpan(), { align: "center" }).moveDown();
       doc.fontSize(5);
       columnTitlesWithOffset.forEach((title) => {
-        doc.text(title[0], xOffset, 150);
+        doc.text(title[0], xOffset, 150,{
+          width:title[1]
+        });
         xOffset += title[1];
       });
       doc.lineWidth(0.5); // Set line weight to 2 (adjust as needed)
@@ -639,10 +640,10 @@ async function generateCaTransactionPDFContent(
       xOffset = 10;
     };
     const columnTitlesWithOffset = [
-      ["DATE", 40],
+      ["DATE", 30],
       ["TRANSACTION TYPE", 65],
       ["NO.", 15],
-      ["POSTING", 30],
+      ["POSTING", 25],
       ["NAME", 60],
       ["MEMO/DESCRIPTION", 70],
       ["DEBIT", 40],
@@ -650,9 +651,10 @@ async function generateCaTransactionPDFContent(
       ["PRODUCT/SERVICE", 70],
       ["CUSTOMER", 60],
       ["SUPPLIER", 40],
-      ["ACCOUNT", 50],
+      ["ACCOUNT", 90],
     ];
     addHeaders();
+    let lastName = ""; 
     caTransactions.forEach((transaction) => {
       if (yOffset > 680) {
         addHeaders();
@@ -664,6 +666,18 @@ async function generateCaTransactionPDFContent(
           xOffset,
           yOffset
         );
+        let showName = false;
+        let customerName = "";
+        if(transaction.customer){
+          customerName = transaction.customer.firstName + " " + transaction.customer.lastName;
+        }
+        let currentName = transaction?.supplier?.name? transaction.supplier.name : customerName;
+        if(!currentName) currentName = "";
+        if(lastName !== currentName){
+          showName = true;
+          lastName = currentName;
+        }
+
       xOffset += columnTitlesWithOffset[0][1];
       doc.text(transaction.type, xOffset, yOffset);
       xOffset += columnTitlesWithOffset[1][1];
@@ -671,7 +685,7 @@ async function generateCaTransactionPDFContent(
       xOffset += columnTitlesWithOffset[2][1];
       doc.text(transaction.posting, xOffset, yOffset);
       xOffset += columnTitlesWithOffset[3][1];
-      doc.text(transaction.name, xOffset, yOffset);
+      doc.text(showName? currentName: "", xOffset, yOffset);
       xOffset += columnTitlesWithOffset[4][1];
       doc.text(transaction.remark, xOffset, yOffset);
       xOffset += columnTitlesWithOffset[5][1];
@@ -692,10 +706,17 @@ async function generateCaTransactionPDFContent(
       doc.text(
         transaction.supplier ? transaction.supplier.name : "",
         xOffset,
-        yOffset
+        yOffset,
+        {
+          width:40,
+          align: "left",
+        }
       );
       xOffset += columnTitlesWithOffset[10][1];
-      doc.text(transaction.chartofAccount.name, xOffset, yOffset);
+      doc.text(transaction?.chartofAccount?.name, xOffset, yOffset,{
+        width: columnTitlesWithOffset[11][1],
+        align: "left",
+      });
       xOffset = 10;
       yOffset += 20;
     });
